@@ -1,0 +1,657 @@
+---
+title: "Predicting the Number of Patients' Complaints against Emergency Department Doctors Based on Doctor's Demographic Characteristics"
+author: "Fanchao(Franco) Meng  23370209"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+bibliography: ref.bib
+---
+
+```{r setup, include=FALSE}
+library(corrplot)
+library(knitr)
+library(MASS)
+library(AER)
+library(lattice)
+library(papeR)
+library(kableExtra)
+library(latticeExtra)
+library(countreg)
+library(lmtest)
+library(psych)
+library(equatiomatic)
+library(pander)
+```
+
+```{r include=FALSE}
+comp_data_2 <-read.table("compdat.txt", header=T, stringsAsFactors = T, sep = "\t")
+summary(comp_data_2)
+str(comp_data_2)
+```
+
+
+# Abstract
+
+Health care system, has always been one of the key sectors in the societies. With the current global pandemic environment, the emergency department has been under enormous pressure to keep up with the demand. It is inevitable that complaints from patients may often be made against doctors. The dramatic increase in the size and frequency of medical complaints over the last decade, has made the development of modeling on related issues, increasingly important (@Cite_4). The background for complaints is related both to the doctor and medical practice in general, as well as to the patients (@Cite_2). The aim for this paper is to identify a model, that provides predictions and explanations of the number of claims for a certain doctor, based on doctor's social-demographic and professional characteristics. The data file given by the unit coordinator, contains 94 doctors records who worked in an emergency service at a hospital.  We analysis the number of the complaints each doctor received in one year of time, based on doctors gender, residency training status,  hourly income and the total number of hours the doctor worked in a year. The analysis will help us explore and discover which measurement may affect the changes in the number of complaints.  
+
+
+A zero inflated poisson model was fitted to the data. The model has revealed that, the doctors who had more numbers of total patient visits in  one year, are more likely to receive an increasing number of total complaints during that time frame, a factor change of 1.15 per 100 increase in the total number of patient visits.  Doctors with higher hourly income rate or more accumulated working hours are more likely to receive less number of complaints, a factor change of 0.991 per 1 dollar increase in hourly rate, and a factor change of 0.92 per 100 increase in the number of hours worked in a year respectively. 
+
+Moreover, being female without any residency training, or being male with residency training , increase the odds of receiving no complaint significantly, comparing with the group of being female doctors with residency training, or male without any residency training. 
+
+
+# 1 Introduction
+
+With the current ongoing pandemic crisis, health care industry, has become the most important sector globally. A better health care system, will provide a solid foundation to battle with contagious diseases, and to maintain a well functioning society. 
+
+In order to improve the health care system, patients' complaint, is one of the crucial areas to be investigated. The better understanding on why the complaints were made, the more efficient to address and resolve the issues. The complaints may concerned different domains, from clinical care, management to patient or caregiver relationship. Patient complaints can provide useful insights into quality of care and patient dissatisfaction (@Cite_5). This paper is focused on investigating the relationship between the complaints and the doctors, who worked in an emergency service at a hospital. The data contained 94 doctors with some of their demographic information. Various literature have also inspected the similar matters. 
+
+In the book 'Applied Categorical Data Analysis and Translational Research', @Cite_8 investigated a very similar data with 44 observations, which including same variables. A simple poisson regression model has been fit in the data. The result indicates that the common perception is almost true, that those without previous training are more likely to receive the same number of complaints as those who were trained in the specialty, 
+the model showed the likelihood will be increased by 36%.
+
+To identify characteristics of doctors who are repeated subjects of complaints made by patients, @Cite_5 designed a case-control study of doctors whom patients had complained to the Victoria Health Commissioner between 1 January 2000 and 31 December 2009. The case comprised 96 doctors who were the subject of four or more separate complaints, and the control group comprised 288 doctors who were subjects of one single complaint over the study period.
+
+The multivariate analyses showed that certain distinctive characteristics of complain-prone doctors were: being male, or the training was completed within Australia. Surgeons and psychiatrists also had higher odds of being in the complaint-prone group than general practitioners.(@Cite_5)
+
+In another article produced by the same group of researchers, @Cite_1 aimed to develop a reliable scoring system and algorithm for identifying, and predicting Australia doctors' risk of becoming the subject of patient complaints. 2011-2016 administrative data collected by the national regulator of healthy practitioners in Australia (AHPRA) has been used , a retrospective cohort study of 14 registered health professions has been conducted. A total of 715,415 registered health practitioners were participated, the modelling incorporated multivariate predictors including: gender, age, profession and specialty, number of prior complaints and complaint issue. 
+
+The research found out that male practitioners' compliant risk was 1.5 times that of female practitioners, there was no significant difference in complaint risk for practitioners 26-35 years and those ages less than 25 years, but practitioners in the older age group had 1.5 to 2.1 times higher risk and it increased with age. Practitioners working based in regional Australia also had 1.1 times higher complaint risk comparing with working in major cities, and those in remote area had 1.3 times the risk with practitioners in the cities. The finding also thoroughly explored the differences between different profession and medical specialty, however this information was not presented in our dataset. 
+
+
+@Cite_2 utilized a binomial logistic regression model to identify independent predictors for Romanian doctors who are more prone to receiving complaints . The analysis was based on a data set consisted of 1684 doctors records, which detailed each doctor's social-demographic (gender, age, marital status etc), professional (medical specialty, area of activity),  and institutional characteristics (type of medical institution, type of patients).
+
+The result showed male doctors face complaints more often than female doctors, doctors with children declared to a higher extend that they experienced complaints than doctors without children. There are also significant differences between the doctors with different professional degrees. Senior doctors, and specialist are more likely to receive complaints as opposed to resident doctors.  While surgical specialties have the highest risk receiving complaints.
+
+
+@Cite_3's article on predicting risk for medical malpractice claims using quality of care characteristics, has explored various characteristics which may contribute to higher risk of doctor receiving complaints. The "high risk" and "low risk" categories were distinguished based on the payouts amount. The chi-squared statistic was used for categorical variables,  one-way analysis of variance was used for continuous variables, and individual pairwise group differences were computed using Duncan's multiple range test. Variables found significant in individuals logistic regressions within each Donabedian component area were combined into a single logistic regression analysis.
+
+The model shows significant predictors of the high-risk group include increasing age, surgical specialty, emergency department coverage, increased number of days away from practice, and feeling that the current climate of litigation is unfair.
+
+
+This report is constructed as follows: the methodology section, will detail the computer tools, and statistical methods used for the modelling process, the steps to be undertaken and the reason to use certain methods. Followed by a result section, where all the detailed data summary will be given, and the final model building, validation process with the interpretation of the final model. This is followed by a discussion of the findings, explaining reasons for the model validation and selection, comparing with other similar modelling results from literature review, and listing certain approaches on how the model can be improved.
+
+
+
+# 2 Methodology
+
+R statistical tool environment was used for the modelling process, with multiple packages including MASS, AER, Lattice, KableExtra, Countreg, Lmtest etc. Statistical significance was determined at the 5% (0.05) level.
+
+In order to build a model to fit the data, all the variables in the dataset were firstly transformed into correct data type, namely categorical and numeric variables. The dataset was then explored by numerical and graphical summaries.  The numerical summary included results of minimum, maximum, median, mean, counts, range, standard deviation for each variables, to ensure all the data entries were proper and there is no invalid, missing entries in the dataset.  The graphic summaries, including scatter plots, box plots, histogram were produced, aiming to explore the relationship between two or three different variables. These plots will facilitate us to visually examine relationships between variables. A correlation map with correlation coefficients, has also been produced to further explore the degree of the correlation between each pair of variables. 
+
+The dataset includes the number of complaints against each doctor, which will be our response variables for the model, along with demographic characteristics of the doctors as explanatory variables.  As the number of complaints are discreet, non-negative count data, and the events were independently occurred.  The data were firstly fit into a log-linear regression for poisson counts, with all the variables and two way interactions between categorical variables considered.
+
+As @Cite_6 mentioned in the book 'Mixed Effects Models and Extensions in Ecology with R', the over/under dispersion, and zero inflated/truncated data are common issues to properly fit in a log-linear poisson regression. It is safest to assume these issues are present in our modelling process. Ignoring zero inflation can cause the estimated parameters and standard errors biased, and the extra zeros can also cause over-dispersion. A histogram of complaints counts grouped by gender and residency was produced, as an evidence that zero-inflated issue existed in our dataset. In order to examine the extra-poisson variation, we here used both numerical and graphical approach, by observing plots of number of complaints against each variables, conducting dispersion tests, and visually checking the Pearson residue plots after fitting the model. 
+
+The data then has been fitted in the following model selection process, with interactions between categorical variables considered. In the order of : poisson regression, quasi-Poisson regression, negative binomial regression, zero-inflated poisson regression, and zero-inflated negative binomial. The below table has demonstrated the reason for this approach. The table has listed the model variance parameters for these 5 models, how the different models gradually allow for extra over dispersion from the data, and dealing with extra zeroes issues :
+@Cite_7
+
+\begin{table}[ht]
+\centering
+\caption{Models allow for extra dispersion}
+\begin{tabular}{rrrrrrrrr}
+  \hline
+ & Models & Variance \\ 
+  \hline
+1 & Poisson & $\mu$ \\ 
+   \hline
+2 & Quasi Poisson & $\Psi\mu$ \\ 
+   \hline
+3 & Negative Binomial & $\mu$ (1 + $\Phi\mu$ ) \\ 
+   \hline
+4 & Zero Inflated Poisson & (1-$\pi$) * ($\mu$ + $\pi$ x $\mu^2$) \\ 
+   \hline
+5 & Zeor Inflated Negative Binomial & (1-$\pi$) * ($\mu$ + $\frac{\mu^2}{k}$) + $\mu^2$ * ($\pi^2$ + $\pi$) \\ 
+   \hline
+\end{tabular}
+\end{table}
+
+
+During the model selection process, the dispersion test, residual deviance, rootogram, and Pearson residual plots were used to examine if the model is improving, or the issues like under fitting zero counts, and whether the over dispersion issue is still existed. 
+
+Once the most suitable model has been decided, the model was reduced to the final model,by using likelihood ratio tests, to examine the significance of each term, accompanied by Wald test P value , AIC (Akaike information criterion) , chi-square statistic of the goodness of fit. The MLE (maximum likelihood estimation) was used to estimate the parameters of the model. The necessity of the interaction terms between categorical variables will be explored, Pearson residue plot, rootogram will also facilitate to monitor the model improvement. 
+
+
+
+# 3 Results
+
+## Summary Tables
+
+The data contains information for 94 doctors in emergency department.  A description and summary statistics are presented in table below, divided by numeric variables and categorical variables. Out of 94 doctors, 37 were female and 57 males, 49 were not in residency training, while the rest 45 were.  There was no obvious issue with the data, the numeric data were fairly normally distributed. 
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+tab <- matrix(c(30, 7, 37, 19, 38, 57, 49, 45, "94 (obs. in data)"), ncol=3, byrow=TRUE)
+colnames(tab) <- c('Residency Training N','Residency Training Y','Row Total')
+rownames(tab) <- c('Female','Male','Column Total')
+tab <- as.table(tab)
+y = kbl(tab,longtable = T, booktabs = TRUE, align="c", linesep = "")%>%
+  kable_styling() %>%
+  row_spec(0,background="yellow") 
+y
+```
+```{r echo=FALSE}
+x = kbl(describe(comp_data_2[, c("visits", "complaints", "revenue", "hours")], fast=TRUE),longtable = F, booktabs = TRUE) %>% 
+  kable_styling(latex_options = c( "hold_position","striped","scale_down"))%>%
+  row_spec(0,background="yellow")
+add_footnote(x, c("  "," ", "residency : is the doctor in residency training (Y = Yes, N = No)", "gender: gender of the doctor (M = male, F = female)", "visits : the number of patient visits ", "complaints : the number of complaints against the doctor in previous year",  "revenue: doctor's hourly income (dollars)", "hours: total number of hours the doctor worked in a year"), notation = "none")
+```
+
+Graphic summaries (boxplots, scatter plots, histogram) has also been produced as below. The median number of complaints is nearly zero for the both group with and without residency training, and for the female doctor group too, while the male group has significant higher median and bigger range in terms of number of complaints. The number of visits appear to positively correlated with number of complaints in none zero part of the data, and lastly the histogram shows our data is zero inflated .
+
+```{r echo=FALSE}
+
+par(mfrow=c(2,3)) 
+plot(comp_data_2$complaints ~ comp_data_2$residency, main = "residency ~ complaints")
+plot(comp_data_2$complaints ~ comp_data_2$gender,main = "gender ~ complaints")
+plot(comp_data_2$complaints ~ comp_data_2$visits,main = "visits ~ complaints")
+plot(comp_data_2$complaints ~ comp_data_2$revenue,main = "revenue ~ complaints")
+plot(comp_data_2$complaints ~ comp_data_2$hours,main = "hours ~ complaints")
+hist(comp_data_2$complaints,main = "Hist. of complaints ")
+```
+
+## Correlation Map (Appendix A.1)
+
+The categorical data residency and gender, were factored into numeric value in order to produce correlation map, (female = 1, male = 2, no residency training = 1, residency training = 2). The positive and negative correlation are indicated by blue and red colors, with the correlation coefficient listed. 95 percent of significance level is used for the P value, the $\times$ indicates the correlation is not significant. The map presented there is no strong correlated relationship ( no correlation coefficient lies between ± 0.50 and ± 1) between any sets of variables. 
+
+
+
+## Histogram 
+
+The below histogram plotted the number of complaints, split by gender and residency status, shows that the zero inflation is present in our data, and specifically in the groups of : Female with no residency training, and Male with residency training. This information is valuable for us to deal with zero inflation issue later on. 
+```{r echo=FALSE}
+histcomp <- histogram (~complaints | gender * residency, comp_data_2, breaks = 0:12 - 1, xlab = "Number of complaints for gender F, M", ylab = "Density for residency status Y, N", main="complaints")
+useOuterStrips(histcomp)
+```
+
+
+
+```{r eval=FALSE, include=FALSE}
+install.packages("countreg", repos="http://R-Forge.R-project.org")
+```
+
+
+A poisson regression has been initially fit to our data, the formula below has been used for model comparison and selection.Interaction between residency and gender was included.
+
+$$ formula = complaints \sim visits + residency * gender + revenue + hours $$
+
+The detailed step by step model fitting and selection process with R code is listed in appendix A.2, below table listed AIC values for each models, and dispersion parameter, by using dispersion test on the poisson model, or the ratio of residual deviance and residual degrees of freedom.
+
+The most suitable model, zero-inflated poisson,  has been selected based on checking the AIC, dispersion parameters, rootogram, and pearson residuals plots. The likelihood ratio test has been conducted between nested models, eg: poisson is nested in zero inflated poisson, ZIP is nested in ZINB. Below table listed dispersion parameters, degrees of freedom, and AIC for the model validation process.
+
+```{r echo=FALSE}
+tab_2 <- matrix(c(2.776 , 2.249, 0.991, '-', '-',7,7,8,13,14,332.39, '-', 293.95, 266.536,268.206), ncol=5, byrow=TRUE)
+colnames(tab_2) <- c('Poisson','quasi-Poisson','Negative Binomial','Zero-Inflated Poisson', 'Zero-inflated NB')
+rownames(tab_2) <- c('dispersion','df','AIC')
+tab_2 <- as.table(tab_2)
+y = kbl(tab_2,longtable = T, booktabs = TRUE, align="c", linesep = "")%>%
+  kable_styling() %>%
+  row_spec(0,background="yellow") 
+y
+```
+
+
+
+```{r include=FALSE}
+library(countreg)
+f <- formula(complaints ~ visits + residency * gender + revenue + hours)
+comp_data.p <- glm(f, data = comp_data_2, family = poisson)
+summary(comp_data.p)
+dispersiontest(comp_data.p)
+plot(residuals(comp_data.p) ~ fitted.values(comp_data.p, type = 'pearson'))
+plot(residuals(comp_data.p, type = 'pearson'))
+#rootogram(comp_data.p)
+```
+
+```{r include=FALSE}
+comp_data.qp <- glm(f, data = comp_data_2, family = quasipoisson)
+summary(comp_data.qp)
+
+plot(residuals(comp_data.qp) ~ fitted.values(comp_data.qp, type = 'pearson'))
+plot(residuals(comp_data.qp, type = 'pearson'))
+#rootogram(comp_data.qp)
+```
+```{r include=FALSE}
+comp_data.nb <- glm.nb(f , data = comp_data_2)
+summary(comp_data.nb)
+#rootogram(comp_data.nb)
+plot(residuals(comp_data.nb) ~ fitted.values(comp_data.nb, type = 'pearson'))
+plot(residuals(comp_data.nb, type = 'pearson'))
+#stepAIC(comp_data.nb)
+```
+```{r eval=FALSE, include=FALSE}
+comp_data.nb.step <- glm.nb(formula = complaints ~ visits + residency + gender + revenue + 
+    hours + residency:gender + 
+    residency:hours + gender:revenue, data = comp_data_2)
+summary(comp_data.nb.step)
+plot(residuals(comp_data.nb.step) ~ fitted.values(comp_data.nb.step, type = 'pearson'))
+plot(residuals(comp_data.nb.step, type = 'pearson'))
+#rootogram(comp_data.nb.step)
+```
+
+```{r include=FALSE}
+comp_data.nb.step.2 <- glm.nb(formula = complaints ~ visits + residency + gender + hours + revenue + residency:hours +  gender:revenue + residency:gender , data = comp_data_2)
+summary(comp_data.nb.step.2)
+plot(residuals(comp_data.nb.step.2) ~ fitted.values(comp_data.nb.step.2, type = 'pearson'))
+plot(residuals(comp_data.nb.step.2, type = 'pearson'))
+
+#lrtest(comp_data.nb.step.2 ,comp_data.nb.step)
+
+```
+
+
+```{r include=FALSE}
+comp_data.zip.1 <- zeroinfl(complaints ~ visits + residency * gender + revenue + hours | visits + residency * gender + revenue + hours
+, data = comp_data_2, dist = "poisson")
+summary(comp_data.zip.1)
+AIC(comp_data.zip.1)
+plot(residuals(comp_data.zip.1) ~ fitted.values(comp_data.zip.1, type = 'pearson'))
+plot(residuals(comp_data.zip.1, type = 'pearson'))
+```
+In order to reduce the model , the likelihood ratio test has been conducted, along with rootogram and pearson residue plots. Below table shows the significance to keep the interactions: between gender and residency in the zero-inflation part of the model, the p value was given by likelihood ratio test. The AIC value was increased from 257 to 288 in the interaction dropped from count model.
+
+
+```{r include=FALSE}
+comp_data.zip.2 <- zeroinfl(complaints ~ visits + revenue + hours 
+| residency * gender  , data = comp_data_2, dist = "poisson")
+summary(comp_data.zip.2)
+AIC(comp_data.zip.2)
+#rootogram(comp_data.zip.2)
+#plot(residuals(comp_data.zip.2) ~ fitted.values(comp_data.zip.2, type = 'pearson'))
+#plot(residuals(comp_data.zip.2, type = 'pearson'))
+```
+
+```{r echo=FALSE}
+model_drop <- zeroinfl(complaints ~  visits  + revenue + hours   |  residency + gender  
+, data = comp_data_2, dist = "poisson")
+#summary(model_drop)
+#AIC(model_drop)
+#plot(residuals(model_drop) ~ fitted.values(model_drop, type = 'pearson'))
+#plot(residuals(model_drop, type = 'pearson'))
+#pander(lrtest(model_drop, comp_data.zip.2))
+#pander(AIC(model_drop, comp_data.zip.2))
+```
+
+Here are the reported results 
+
+
+
+for the count model : 
+
+$$Gender \times\ Residency \ Interaction : \mathbf{Pr(\chi^2_{1} > 32.59) = 1.136^{-8}} $$
+
+for the logistic model: 
+
+$$Visits : \mathbf{Pr(\chi^2_{1} > 15.478) = 8.346^{-5}} $$
+$$Revenue : \mathbf{Pr(\chi^2_{1} > 5.3696) = 0.02049} $$
+$$Hours : \mathbf{P = 0.044988} $$
+* Wald test P value reported for the hours, dropping hours causing misfit NAs.
+
+
+
+The final model variables and coefficients are given below, along with factor change in number of complaints, for the indicated change in the variable.
+Due to the large range for visits : 879 to	3763 , and large range for hours: 589 to 2269.0726, both variable has been interpreted in the change of every 100 rather than 1.
+```{r echo=FALSE}
+
+tab_2 <- matrix(c('Coefficient', 'factor Change in number of complaints', 1.433e-03, "1.154076 (per 100 increase)",-9.228e-03,"0.9908143 (per $1 increase)",-8.370e-04, "0.9197071 (per 100 increase)",'Coefficient', 'odds ratio (change) of having zero complaints',1.2650,3.543235e+00,-14.2266, 6.629167e-07 ,-14.5160, 4.963200e-07,27.6935, 1.064516e+12, 257.8263, ' ' ), ncol=2, byrow=TRUE)
+colnames(tab_2) <- c('','')
+rownames(tab_2) <- c('Count model coefficients (poisson with log link):','visits','revenue','hours','Zero-inflation model coefficients (binomial with logit link):',
+                     '(Intercept)','Residency Yes','Gender Male','Residency Yes : Gender Male', 'AIC' )
+tab_2 <- as.table(tab_2)
+y = kbl(tab_2,longtable = T, booktabs = TRUE, align="c", linesep = "")%>%
+  kable_styling() %>%
+  row_spec(c(1,5,10),background="yellow") 
+y
+
+
+```
+
+The followings are the findings from the model:
+
+To predict none zero numbers of complaints:
+
+1: For every 100 increase in the number of visits, the estimated mean number of complains increase by factor of 1.15 on average.
+
+2: For every $1 increase in the revenue, the estimated mean number of complains decrease by factor of 0.991 on average. 
+
+3: For every 100 increase in the number of hours, the estimated mean number of complains decrease by factor of 0.92 on average. 
+
+To predict the odds of having zero complaint: 
+
+Male doctors, with residency training, and female doctors, without residency training, are significantly more likely to receive no complaints, than female doctors with residency training, or male doctors without residency training.  
+
+# Discussion 
+
+There are several researchers using various models to predict number of complaints doctor received, some of them covered in the introduction literature review. We here used a zero inflated poisson model for the number of complaints doctor received in previous year, based on 5 characteristics. 
+
+1. the modeling initial visual plots discovered a strong interaction relationship between gender and residency, that male doctors with residency training, and female doctors without residency training are a lot more likely to receive no complaints. The Wald test P value shows the interaction was not significant in the zero count part of the model, the coefficients are very large and the standard errors are even larger, an indication that the model might have some issue with the interaction term.
+
+The below table has quantified our data:
+```{r echo=FALSE}
+tab_3 <- matrix(c(5,25,7,0, 18,1,13,25), ncol=2, byrow=TRUE)
+colnames(tab_3) <- c('Number of Obs with at least 1 complaint','Number of Obs with 0 complaint')
+rownames(tab_3) <- c('Female Not in Residency Training','Female In Residency Training','Male Not in Residency Training','Male In Residency Training')
+
+
+
+tab_3 <- as.table(tab_3)
+z = kbl(tab_3,longtable = T, booktabs = TRUE, align="c", linesep = "")%>%
+  kable_styling() %>%
+  row_spec(0,background="yellow") 
+z
+```
+
+The complete separation / quasi-separation issues are existed. That based on our data, the prediction can be made that if you are female in residency training, you would definitely get at lease 1 complaints, and similar situation goes to female not in residency training, where only 1 exception presented in our data.  
+
+We can try to omit the interaction terms, however it would leads bias estimates for the other predictor variables in the model. The likelihood ratio test has provided an overwhelming evidence (p = 1.136e-08) to include interaction terms, the significant decrease in AIC also shows the significance of the interactions.
+
+
+2. Separation occurs when the dataset is too small to observe events with low probabilities. The female in residency training group only has 7 observations in our dataset. The issue may be improved if more observation presented. For the interaction terms between gender and residency, we can try remove the predictor, collapse predictor categories, or re-expressing the predictors. However these are not very practical in our case.
+
+3. Bayesian method can be used when some additional information given. The model may be improved if regularization or Bayesian priors are used.
+
+4. The negative binomial model also has dealt with over dispersion issue well. However the model includes more interactions: between residency and hours,  gender and revenue. The AIC and residue plot comparison shows the simpler ZIP model perform better. 
+
+5. Plots of the Pearson residuals below indicates the presence of two outliers (>3 standardized distance). Index 17 & 21 in the data.
+The rootogram shows the zero counts fitted well, some other counts are slightly under or over fit but overall it was satisfactory. 
+
+```{r echo=FALSE, fig.height=3.5, fig.width=7}
+options(warning = -1)
+par(mfrow = c(1,2))
+plot(residuals(comp_data.zip.2) ~ fitted.values(comp_data.zip.2, type = 'pearson'), xlab = "Fitted values", ylab = "Pearson Residuals", main = "Zero-Inflated Poisson Model" )
+plot(residuals(comp_data.zip.2, type = 'pearson'), ylab = "Pearson Residuals", main = "Zero-Inflated Poisson Model")
+
+par(mfrow = c(1,1))
+options(warnings = 0)
+rootogram(comp_data.zip.2, main = "Zero-Inflated Poisson Model")
+```
+
+
+5. some other characteristics, which were not included in our dataset, may be valuable to better predict the number of complaints. for example, doctor's age and hospital location (city/rural) are significant in @Cite_1's finding. Certain doctor's occupation specialties, and the levels of their professional degrees, may also affect the number of received complaints (@Cite_2)
+
+6. When swapping two parts of our model, move the interaction term to the poisson part of the model, and move revenue,hours,and visits to zero count part of the model, all the terms were statistically significant. However AIC was increased significantly, and the residue appears to have much larger variance (-2 to 8) . 
+
+ 
+
+
+```{r include=FALSE}
+comp_data.zip.3 <- zeroinfl(complaints ~ residency * gender  
+| visits   + revenue + hours , data = comp_data_2, dist = "poisson")
+summary(comp_data.zip.3)
+AIC(comp_data.zip.3)
+plot(residuals(comp_data.zip.3) ~ fitted.values(comp_data.zip.3, type = 'pearson'))
+plot(residuals(comp_data.zip.3, type = 'pearson'))
+
+```
+
+
+
+```{r include=FALSE}
+comp_data.zinb <- zeroinfl(complaints ~ visits + residency * gender + revenue + hours | visits + residency * gender + revenue + hours  , data = comp_data_2, dist = "negbin")
+summary(comp_data.zinb)
+AIC(comp_data.zinb)
+#rootogram(comp_data.zinb)
+plot(residuals(comp_data.zinb) ~ fitted.values(comp_data.zinb, type = 'pearson'))
+plot(residuals(comp_data.zinb, type = 'pearson'))
+
+```
+```{r eval=FALSE, include=FALSE}
+lrtest(comp_data.zip.1, comp_data.zinb)
+AIC(comp_data.zip.1, comp_data.zinb)
+
+lrtest(comp_data.p,comp_data.zip.1)
+
+
+# model comparing with lrtest : zip.1 is significant better than p, but nb is not. so we choose zip.1
+# zip.1 is not siginificant better then zip.2, so we choose easier model.
+
+
+```
+
+
+
+
+
+
+
+
+
+# References
+
+
+<div id="refs"></div>
+
+
+# Appendix {-} 
+
+# Appendix A.1
+
+
+```{r echo=FALSE}
+comp_data_3 <- within(comp_data_2, {residency <- as.numeric(residency) 
+gender <- as.numeric(gender)})
+
+
+
+M_1 <- cor(comp_data_3)
+test_Res_1 = cor.mtest(comp_data_3, conf.level = 0.95)
+
+corrplot( M_1, p.mat = test_Res_1$p, method = 'circle',  type = 'upper', insig='pch',addCoef.col ='black', number.cex = 0.8, order = 'hclust', diag=TRUE)
+```
+
+*The positive and negative correlation are indicated by blue and red colors, with the correlation coefficient listed. 95 percent of significance level is used for the P value, the $\times$ indicates the correlation is not significant.
+
+
+
+# Appendix A.2
+
+# R Code
+
+
+# load Packages
+
+library(corrplot)
+library(knitr)
+library(MASS)
+library(AER)
+library(lattice)
+library(papeR)
+library(kableExtra)
+library(latticeExtra)
+library(countreg)
+library(lmtest)
+library(psych)
+library(equatiomatic)
+library(pander)
+
+# load data in
+```{r}
+comp_data_2 <-read.table("compdat.txt", header=T, stringsAsFactors = T, sep = "\t")
+summary(comp_data_2)
+str(comp_data_2)
+```
+
+# producing numeric and graphic summary tables
+```{r}
+tab <- matrix(c(30, 7, 37, 19, 38, 57, 49, 45, "94 (obs. in data)"), ncol=3, byrow=TRUE)
+colnames(tab) <- c('Residency Training N','Residency Training Y','Row Total')
+rownames(tab) <- c('Female','Male','Column Total')
+tab <- as.table(tab)
+y = kbl(tab,longtable = T, booktabs = TRUE, align="c", linesep = "")%>%
+  kable_styling() %>%
+  row_spec(0,background="yellow") 
+y
+```
+
+```{r}
+x = kbl(describe(comp_data_2[, c("visits", "complaints", "revenue", "hours")], fast=TRUE),longtable = F, booktabs = TRUE) %>% 
+  kable_styling(latex_options = c( "hold_position","striped","scale_down"))%>%
+  row_spec(0,background="yellow")
+add_footnote(x, c("  "," ", "residency : is the doctor in residency training (Y = Yes, N = No)", "gender: gender of the doctor (M = male, F = female)", "visits : the number of patient visits ", "complaints : the number of complaints against the doctor in previous year",  "revenue: doctor's hourly income (dollars)", "hours: total number of hours the doctor worked in a year"), notation = "none")
+```
+
+```{r}
+par(mfrow=c(2,3)) 
+plot(comp_data_2$complaints ~ comp_data_2$residency, main = "Boxplot of residency ~ complaints")
+plot(comp_data_2$complaints ~ comp_data_2$gender,main = "Boxplot of gender ~ complaints")
+plot(comp_data_2$complaints ~ comp_data_2$visits,main = "Scatter plot of visits ~ complaints")
+plot(comp_data_2$complaints ~ comp_data_2$revenue,main = "Scatter plot of revenue ~ complaints")
+plot(comp_data_2$complaints ~ comp_data_2$hours,main = "Scatter plot of hours ~ complaints")
+hist(comp_data_2$complaints,main = "Hist of complaints ")
+```
+
+# Producing correlation heat map
+
+```{r}
+comp_data_3 <- within(comp_data_2, {residency <- as.numeric(residency) 
+gender <- as.numeric(gender)})
+
+
+
+M_1 <- cor(comp_data_3)
+test_Res_1 = cor.mtest(comp_data_3, conf.level = 0.95)
+
+corrplot( M_1, p.mat = test_Res_1$p, method = 'circle',  type = 'upper', insig='pch',addCoef.col ='black', number.cex = 0.8, order = 'hclust', diag=TRUE)
+```
+
+
+# Producing histogram
+
+```{r}
+histcomp <- histogram (~complaints | gender * residency, comp_data_2, breaks = 0:12 - 1, xlab = "Number of complaints for gender F, M", ylab = "Density for residency status Y, N", main="complaints")
+useOuterStrips(histcomp)
+```
+
+# building initial formula for data selection
+
+# 1. poisson model with summary and diagnostics, dispersion test etc
+
+
+```{r}
+f <- formula(complaints ~ visits + residency * gender + revenue + hours)
+comp_data.p <- glm(f, data = comp_data_2, family = poisson)
+summary(comp_data.p)
+dispersiontest(comp_data.p)
+par(mfrow=c(1,2)) 
+plot(residuals(comp_data.p) ~ fitted.values(comp_data.p, type = 'pearson'))
+plot(residuals(comp_data.p, type = 'pearson'))
+par(mfrow=c(1,1)) 
+rootogram(comp_data.p)
+```
+
+
+# 2. quasi poisson model with summary and diagnostics
+
+```{r}
+comp_data.qp <- glm(f, data = comp_data_2, family = quasipoisson)
+summary(comp_data.qp)
+par(mfrow=c(1,2)) 
+plot(residuals(comp_data.qp) ~ fitted.values(comp_data.qp, type = 'pearson'))
+plot(residuals(comp_data.qp, type = 'pearson'))
+```
+
+# 3. negative binomial with summary and diagnostics, with step AIC used
+
+
+```{r}
+comp_data.nb <- glm.nb(f , data = comp_data_2)
+summary(comp_data.nb)
+par(mfrow=c(1,2)) 
+plot(residuals(comp_data.nb) ~ fitted.values(comp_data.nb, type = 'pearson'))
+plot(residuals(comp_data.nb, type = 'pearson'))
+par(mfrow=c(1,1)) 
+rootogram(comp_data.nb)
+stepAIC(comp_data.nb)
+```
+
+# 3.1  negative binomial final model after backwards stepwise selection
+
+```{r}
+comp_data.nb.step <- glm.nb(formula = complaints ~ visits + residency + gender + revenue + 
+    hours + residency:gender + 
+    residency:hours + gender:revenue, data = comp_data_2)
+summary(comp_data.nb.step)
+par(mfrow=c(1,2)) 
+plot(residuals(comp_data.nb.step) ~ fitted.values(comp_data.nb.step, type = 'pearson'))
+plot(residuals(comp_data.nb.step, type = 'pearson'))
+par(mfrow=c(1,1)) 
+rootogram(comp_data.nb.step)
+```
+
+# 4.ZIP model with summary and diagnostics
+```{r}
+comp_data.zip.1 <- zeroinfl(complaints ~ visits + residency * gender + revenue + hours | visits + residency * gender + revenue + hours
+, data = comp_data_2, dist = "poisson")
+summary(comp_data.zip.1)
+AIC(comp_data.zip.1)
+par(mfrow=c(1,2)) 
+plot(residuals(comp_data.zip.1) ~ fitted.values(comp_data.zip.1, type = 'pearson'))
+plot(residuals(comp_data.zip.1, type = 'pearson'))
+par(mfrow=c(1,1)) 
+rootogram(comp_data.zip.1)
+```
+
+# 5. ZINB model with summary and diagnostics 
+
+```{r}
+comp_data.zinb <- zeroinfl(complaints ~ visits + residency * gender + revenue + hours | visits + residency * gender + revenue + hours  , data = comp_data_2, dist = "negbin")
+summary(comp_data.zinb)
+AIC(comp_data.zinb)
+par(mfrow=c(1,2)) 
+plot(residuals(comp_data.zinb) ~ fitted.values(comp_data.zinb, type = 'pearson'))
+plot(residuals(comp_data.zinb, type = 'pearson'))
+par(mfrow=c(1,1)) 
+rootogram(comp_data.zinb)
+```
+
+# 5.1 likelihood ratio test to compare ZINB and ZIP, prove that ZINB is not improving the model significantly
+```{r}
+lrtest(comp_data.zip.1, comp_data.zinb)
+AIC(comp_data.zip.1, comp_data.zinb)
+```
+
+
+
+# 6.1 Dropping interaction terms between residency x gender from count part of ZIP, showing the compelling evidence of the  interaction term significance
+
+```{r}
+comp_data.zip.1.drop <- zeroinfl(complaints ~ visits + residency * gender + revenue + hours | visits + residency + gender + revenue + hours
+, data = comp_data_2, dist = "poisson")
+summary(comp_data.zip.1)
+lrtest(comp_data.zip.1, comp_data.zip.1.drop)
+```
+
+
+# 6.2 Final model after using likelihood ratio test to drop each non-significant term
+```{r}
+comp_data.zip.2 <- zeroinfl(complaints ~ visits + revenue + hours | residency * gender, data = comp_data_2, dist = "poisson")
+summary(comp_data.zip.2)
+AIC(comp_data.zip.2)
+```
+
+
+# 7. Another alternative model for ZIP, place variable in the opposite part of the model
+```{r}
+comp_data.zip.3 <- zeroinfl(complaints ~ residency * gender | visits   + revenue + hours , data = comp_data_2, dist = "poisson")
+summary(comp_data.zip.3)
+AIC(comp_data.zip.3)
+par(mfrow=c(1,2)) 
+plot(residuals(comp_data.zip.3) ~ fitted.values(comp_data.zip.3, type = 'pearson'))
+plot(residuals(comp_data.zip.3, type = 'pearson'))
+```
+
+
+
+# 8. Final model diagnostics
+
+```{r}
+summary(comp_data.zip.2)
+AIC(comp_data.zip.2)
+par(mfrow=c(1,2)) 
+plot(residuals(comp_data.zip.2) ~ fitted.values(comp_data.zip.2, type = 'pearson'))
+plot(residuals(comp_data.zip.2, type = 'pearson'))
+par(mfrow=c(1,1)) 
+rootogram(comp_data.zip.2)
+```
+
+
