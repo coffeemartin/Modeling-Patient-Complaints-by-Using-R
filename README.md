@@ -13,14 +13,12 @@ doctors gender, residency training status, hourly income and the total number of
 in a year. The analysis will help us explore and discover which measurement may affect the changes in the
 number of complaints.<br>
 <br>
-<br>
 A zero inflated poisson model was fitted to the data. The model has revealed that, the doctors who had
 more numbers of total patient visits in one year, are more likely to receive an increasing number of total
 complaints during that time frame, a factor change of 1.15 per 100 increase in the total number of patient
 visits. Doctors with higher hourly income rate or more accumulated working hours are more likely to receive
 less number of complaints, a factor change of 0.991 per 1 dollar increase in hourly rate, and a factor change
 of 0.92 per 100 increase in the number of hours worked in a year respectively.<br>
-<br>
 <br>
 Moreover, being female without any residency training, or being male with residency training , increase the
 odds of receiving no complaint significantly, comparing with the group of being female doctors with residency
